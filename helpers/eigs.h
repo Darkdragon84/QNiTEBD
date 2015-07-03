@@ -18,15 +18,17 @@ extern "C"
                  int IPNTR[], double WORKD[], double WORKL[], int* LWORKL, int* INFO);
     void dneupd_(int* RVEC, char* HOWMNY, int SELECT[], double DR[], double DI[], double Z[], int* LDZ, double* SIGMAR, double* SIGMAI, double WORKEV[], char* BMAT, int* N,
                  char WHICH[], int* NEV, double* TOL, double RESID[], int* NCV, double V[], int* LDV, int IPARAM[], int IPNTR[], double WORKD[], double WORKL[], int* LWORKL, int* INFO);
-    void znaupd_(int* IDO, char* BMAT, int* N, char WHICH[], int* NEV, double* TOL, double RESID[], int* NCV, double V[], int* LDV, int IPARAM[],
-                 int IPNTR[], double WORKD[], double WORKL[], int* LWORKL, double RWORK[], int* INFO);
+    void znaupd_(int* IDO, char* BMAT, int* N, char WHICH[], int* NEV, double* TOL, Complex RESID[], int* NCV, Complex V[], int* LDV, int IPARAM[],
+                 int IPNTR[], Complex WORKD[], Complex WORKL[], int* LWORKL, double RWORK[], int* INFO);
+    void zneupd_(int* RVEC, char* HOWMNY, int SELECT[], Complex D[], Complex Z[], int* LDZ, Complex* SIGMA, Complex WORKEV[], char* BMAT, int* N, char WHICH[], int* NEV,
+                 double* TOL, Complex RESID[], int* NCV, Complex V[], int* LDV, int IPARAM[], int IPNTR[], Complex WORKD[], Complex WORKL[], int* LWORKL, double RWORK[], int* INFO);
 }
 
 int eigs_rn(std::function<void (double*,double*)> MultOPx, int N, CVecType& vals, CMatType& vecs, int nev, std::string whch="LM", double tol=1e-14, int maxit=500, int ncv=0);
 int eigs_rn(const RMatType& A, CVecType& vals, CMatType& vecs,  int nev, std::string whch="LM", double tol=1e-14, int maxit=500, int ncv=0);
 
-int eigs_cn(std::function<void (double*,double*)> MultOPx, int n, CVecType& vals, CMatType& vecs, int nev, std::string whch="LM", double tol=1e-14, int maxit=500, int ncv=0);
-int eigs_rn(const CMatType& A, CVecType& vals, CMatType& vecs,  int nev, std::string whch="LM", double tol=1e-14, int maxit=500, int ncv=0);
+int eigs_cn(std::function<void (Complex*,Complex*)> MultOPx, int n, CVecType& vals, CMatType& vecs, int nev, std::string whch="LM", double tol=1e-14, int maxit=500, int ncv=0);
+int eigs_cn(const CMatType& A, CVecType& vals, CMatType& vecs,  int nev, std::string whch="LM", double tol=1e-14, int maxit=500, int ncv=0);
 
 //template<typename VT>
 //void ShowArray(VT arr[], size_t len){for (size_t i=0; i<len; ++i)cout<<arr[i]<<endl;}

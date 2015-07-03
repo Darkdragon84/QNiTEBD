@@ -41,7 +41,7 @@ OBJDIR_RELEASE = obj/ReleaseMKL
 OUT_RELEASE = bin/Release/$(EXENAME)
 OBJ_RELEASE = $(OBJECTS:%.o=$(OBJDIR_RELEASE)/%.o)
 
-HELP_DIR = ../../helpers
+HELP_DIR = helpers
 HELP_OBJ_DIR_DEBUG = $(OBJDIR_DEBUG)/helpers
 HELP_OBJ_DIR_RELEASE = $(OBJDIR_RELEASE)/helpers
 

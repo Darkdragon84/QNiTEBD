@@ -2,14 +2,16 @@
 #include "eigs.h"
 
 using namespace std;
+//auto cc2fc = reinterpret_cast<double*>;
 
-int eigs_cn(std::function<void (double*,double*)> MultOPx, int N, CVecType& vals, CMatType& vecs, int nev, std::string whch, double tol, int maxit, int ncv)
+int eigs_cn(std::function<void (Complex*,Complex*)> MultOPx, int N, CVecType& vals, CMatType& vecs, int nev, std::string whch, double tol, int maxit, int ncv)
 {
+/// TODO (valentin#1#2015-06-18): Replace all dynamically allocated arrays with arma vectors
     vals.reset();
     vecs.reset();
     /// PARAMS FOR ZNAUPD ---------------------------------------------------------------------------------------------------------//
     int mode=1; /// standard EV problem A*x = lam*x
-    maxit=std::max(maxit,N);
+    maxit=std::min(maxit,N);
 
     int IDO=0;
     char BMAT='I';
@@ -24,18 +26,21 @@ int eigs_cn(std::function<void (double*,double*)> MultOPx, int N, CVecType& vals
     int IPNTR[14];
     int INFONAUP=1;
 
-    RVecType RESID(2*N,fill::randn);
-    RMatType V(2*LDV,NCV);
-    double * WORKD = new double[2*3*N];
-    double * WORKL = new double[2*LWORKL];
-    double * RWORK = new double[NCV];
+    CVecType RESID(N,fill::randn); /// on entry contains starting vector for Arnoldi, on exit contains the final residual vector
+    CMatType V(N,NCV); /// will contain Krylov Basis from Arnoldi
+    CVecType WORKD(3*N);
+    CVecType WORKL(LWORKL);
+    RVecType RWORK(NCV);
+//    Complex * WORKD = new Complex[3*N];
+//    Complex * WORKL = new Complex[LWORKL];
+//    double * RWORK = new double[NCV];
     /// ZNAUPD -------------------------------------------------------------------------------------------------------------------------//
+//    int dummy = 0;
     while (IDO!=99)
     {
         /// standard EV problem: A*x = lambda*x (here OP=A and B=I)
         /// generalized EV problem: A*x = lambda*M*x (here OP = inv[M]*A and B=M)
-
-        znaupd_(&IDO,&BMAT,&N,WHICH,&NEV,&TOL,RESID.memptr(),&NCV,V.memptr(),&LDV,IPARAM,IPNTR,WORKD,WORKL,&LWORKL,RWORK,&INFONAUP);
+        znaupd_(&IDO,&BMAT,&N,WHICH,&NEV,&TOL,RESID.memptr(),&NCV,V.memptr(),&LDV,IPARAM,IPNTR,WORKD.memptr(),WORKL.memptr(),&LWORKL,RWORK.memptr(),&INFONAUP);
 
         switch (IDO)
         {
@@ -57,7 +62,7 @@ int eigs_cn(std::function<void (double*,double*)> MultOPx, int N, CVecType& vals
             cerr<<"4 not implemented"<<endl;
             break;
         case 99:/// ARPACK HAS CONVERGED
-            cout<<"ARPACK converged: "<<IPARAM[8]<<" OPx"<<endl;
+//            cout<<"convergence"<<endl;
             break;
         default:
             cerr<<"IDO has unknown value"<<endl;
@@ -65,38 +70,79 @@ int eigs_cn(std::function<void (double*,double*)> MultOPx, int N, CVecType& vals
     }
     int nconv=0;
 
-    if (IDO==99 && INFONAUP==0) nconv=IPARAM[4];
+    if (IDO==99 && INFONAUP==0)
+    {
+        nconv=IPARAM[4];
+//        cout<<"ARPACK: "<<nconv<<" eigenpairs have converged"<<endl;
+//        cout<<IPARAM[8]<<" OPx"<<endl;
+    }
     else
     {
         cerr<<"no convergence in ZNAUPD, on exit: "<<INFONAUP<<endl;
 
-        delete[] WORKD;
-        delete[] WORKL;
-        delete[] RWORK;
+//        delete[] WORKD;
+//        delete[] WORKL;
+//        delete[] RWORK;
         return 0;
     }
 
     /// PARAMS FOR ZNEUPD -------------------------------------------------------------------------------------------------------------------------//
+    int INFONEUP=0;
+    int RVEC=1;
+    char HOWMNY='A';
+    IVecType SELECT(NCV,fill::zeros);
+//    CVecType EV(NEV+1);
+    vals.resize(NEV+1);
+//    SELECT.zeros();
+    vecs.resize(N,NEV+1);
+//    CMatType Zmat(N,NEV+1);
+//    Complex* D = EV.memptr();
+//    Complex* Z = Zmat.memptr();
+    int LDZ=N;
+    Complex SIGMA(0,0);
+    CVecType WORKEV(2*NCV);
 
-    delete[] WORKD;
-    delete[] WORKL;
-    delete[] RWORK;
+//    DOUT("calling zneupd");
+    zneupd_(&RVEC,&HOWMNY,SELECT.memptr(),vals.memptr(),vecs.memptr(),&LDZ,&SIGMA,WORKEV.memptr(),&BMAT,&N,WHICH,&NEV,&TOL,RESID.memptr(),
+            &NCV,V.memptr(),&LDV,IPARAM,IPNTR,WORKD.memptr(),WORKL.memptr(),&LWORKL,RWORK.memptr(),&INFONEUP);
+//    DOUT("done");
+    if (INFONEUP==0)
+    {
+        vals.resize(nconv);
+        vecs.resize(N,nconv);
+//        cout<<"ZNEUPD converged:"<<endl;
+//        cout<<vals<<endl;
+    }
+    else
+    {
+        cerr<<"no convergence in ZNEUPD, on exit "<<INFONEUP<<endl;
 
-    return 0;
+//        delete[] WORKD;
+//        delete[] WORKL;
+//        delete[] RWORK;
+        return 0;
+    }
+//
+//    delete[] WORKD;
+//    delete[] WORKL;
+//    delete[] RWORK;
+
+    return nconv;
 }
 
-int eigs_rc(const CMatType& A, CVecType& vals, CMatType& vecs,  int nev, std::string whch, double tol, int maxit, int ncv)
+int eigs_cn(const CMatType& A, CVecType& vals, CMatType& vecs,  int nev, std::string whch, double tol, int maxit, int ncv)
 {
     size_t m=A.n_rows;
     assert(m==A.n_cols);
 
-    auto MultAx=[&A,m](double in[], double out[])
+    auto MultAx=[&A,m](Complex in[], Complex out[]) -> void
     {
+//        DOUT("before multiplication");
         CVecType invec(in,m,false), outvec(out,m,false);
         outvec = A*invec;
+//        DOUT("after multiplication");
     };
-
-    return eigs_rc(MultAx,m,vals,vecs,nev,whch,tol,maxit,ncv);
+    return eigs_cn(MultAx,m,vals,vecs,nev,whch,tol,maxit,ncv);
 }
 
 int eigs_rn(std::function<void (double*,double*)> MultOPx, int N, CVecType& vals, CMatType& vecs, int nev, std::string whch, double tol, int maxit, int ncv)
@@ -126,13 +172,15 @@ int eigs_rn(std::function<void (double*,double*)> MultOPx, int N, CVecType& vals
     RVecType RESID(N,fill::randn);
 //    RVecType RESID(N);
     RMatType V(LDV,NCV);
-    double * WORKD = new double[3*N];
-    double * WORKL = new double[LWORKL];
+    RVecType WORKD(3*N);
+    RVecType WORKL(LWORKL);
+//    double * WORKD = new double[3*N];
+//    double * WORKL = new double[LWORKL];
 //    uint ct=0;
     /// DNAUPD -------------------------------------------------------------------------------------------------------------------------//
     while (IDO!=99)
     {
-        dnaupd_(&IDO,&BMAT,&N,WHICH,&NEV,&TOL,RESID.memptr(),&NCV,V.memptr(),&LDV,IPARAM,IPNTR,WORKD,WORKL,&LWORKL,&INFONAUP);
+        dnaupd_(&IDO,&BMAT,&N,WHICH,&NEV,&TOL,RESID.memptr(),&NCV,V.memptr(),&LDV,IPARAM,IPNTR,WORKD.memptr(),WORKL.memptr(),&LWORKL,&INFONAUP);
 
         switch (IDO)
         {
@@ -168,8 +216,8 @@ int eigs_rn(std::function<void (double*,double*)> MultOPx, int N, CVecType& vals
     {
         cerr<<"no convergence in DNAUPD, on exit: "<<INFONAUP<<endl;
 
-        delete[] WORKD;
-        delete[] WORKL;
+//        delete[] WORKD;
+//        delete[] WORKL;
         return 0;
     }
 
@@ -183,9 +231,9 @@ int eigs_rn(std::function<void (double*,double*)> MultOPx, int N, CVecType& vals
     RVecType EVR(NEV+1);
     RVecType EVI(NEV+1);
     RMatType Zmat(N,NEV+1);
-    double * DR = EVR.memptr();
-    double * DI = EVI.memptr();
-    double * Z = Zmat.memptr();
+//    double * DR = EVR.memptr();
+//    double * DI = EVI.memptr();
+//    double * Z = Zmat.memptr();
     int LDZ=N;
     double SIGMAR=0., SIGMAI=0.;
     RVecType WORKEV(3*NCV);
@@ -193,7 +241,9 @@ int eigs_rn(std::function<void (double*,double*)> MultOPx, int N, CVecType& vals
 
     /// DNEUPD -------------------------------------------------------------------------------------------------------------------------------------//
 
-    dneupd_(&RVEC,&HOWMNY,SELECT.memptr(),DR,DI,Z,&LDZ,&SIGMAR,&SIGMAI,WORKEV.memptr(),&BMAT,&N,WHICH,&NEV,&TOL,RESID.memptr(),&NCV,V.memptr(),&LDV,IPARAM,IPNTR,WORKD,WORKL,&LWORKL,&INFONEUP);
+//    dneupd_(&RVEC,&HOWMNY,SELECT.memptr(),DR,DI,Z,&LDZ,&SIGMAR,&SIGMAI,WORKEV.memptr(),&BMAT,&N,WHICH,&NEV,&TOL,RESID.memptr(),&NCV,V.memptr(),&LDV,IPARAM,IPNTR,WORKD,WORKL,&LWORKL,&INFONEUP);
+    dneupd_(&RVEC,&HOWMNY,SELECT.memptr(),EVR.memptr(),EVI.memptr(),Zmat.memptr(),&LDZ,&SIGMAR,&SIGMAI,WORKEV.memptr(),
+            &BMAT,&N,WHICH,&NEV,&TOL,RESID.memptr(),&NCV,V.memptr(),&LDV,IPARAM,IPNTR,WORKD.memptr(),WORKL.memptr(),&LWORKL,&INFONEUP);
 
     if(INFONEUP==0)
     {
@@ -230,14 +280,14 @@ int eigs_rn(std::function<void (double*,double*)> MultOPx, int N, CVecType& vals
     {
         cerr<<"no convergence in DNEUP, on exit: "<<INFONEUP<<endl;
 
-        delete[] WORKD;
-        delete[] WORKL;
+//        delete[] WORKD;
+//        delete[] WORKL;
         return 0;
     }
 
     /// CLEAN UP
-    delete[] WORKD;
-    delete[] WORKL;
+//    delete[] WORKD;
+//    delete[] WORKL;
 
     return nconv;
 }

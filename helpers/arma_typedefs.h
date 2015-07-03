@@ -39,13 +39,13 @@ typedef std::shared_ptr<CVecType> pCVecType;
 typedef std::shared_ptr<IVecType> pIVecType;
 
 #ifdef COMPLEX
-typedef Complex Scalar;
-typedef CVecType VecType;
-typedef CMatType MatType;
+using Scalar = Complex;
+using VecType = CVecType;
+using MatType = CMatType;
 #else
-typedef Real Scalar;
-typedef RVecType VecType;
-typedef RMatType MatType;
+using Scalar = Real;
+using VecType = RVecType;
+using MatType = RMatType;
 #endif
 
 /// additional typedefs
